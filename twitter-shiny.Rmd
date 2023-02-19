@@ -8,53 +8,89 @@ runtime: shiny
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-pacman::p_load(rtweet,syuzhet, tidyverse, DT, stringr, wordcloud, tidytext)
+pacman::p_load(rtweet,syuzhet, tidyverse, DT, stringr, wordcloud, tidytext, shiny)
 ```
 
-This R Markdown document is made interactive using Shiny. Unlike the more traditional workflow of creating static reports, you can now create documents that allow your readers to change the assumptions underlying your analysis and see the results immediately. 
+```{r load data, include = FALSE}
+load('data.Rdata')
 
-To learn more, see [Interactive Documents](http://rmarkdown.rstudio.com/authoring_shiny.html).
+## Twitter data {.tabset}
 
-## Inputs and Outputs
+### Recent Rstats tweets
 
-You can embed Shiny inputs and outputs in your document. Outputs are automatically updated whenever inputs change.  This demonstrates how a standard R plot can be made interactive by wrapping it in the Shiny `renderPlot` function. The `selectInput` and `sliderInput` functions create the input widgets used to drive the plot.
+### Tweets from @RLadiesSeattle
 
-```{r eruptions, echo=FALSE}
+```
+
+```{r tweets, echo=FALSE}
 inputPanel(
-  selectInput("n_breaks", label = "Number of bins:",
-              choices = c(10, 20, 35, 50), selected = 20),
-  
-  sliderInput("bw_adjust", label = "Bandwidth adjustment:",
-              min = 0.2, max = 2, value = 1, step = 0.2)
+  selectInput("tweetlang", label = "Language of tweets:",
+              choices = unique(tweets$lang), selected = "en", multiple = TRUE)
 )
 
 renderPlot({
-  hist(faithful$eruptions, probability = TRUE, breaks = as.numeric(input$n_breaks),
-       xlab = "Duration (minutes)", main = "Geyser eruption duration")
-  
-  dens <- density(faithful$eruptions, adjust = input$bw_adjust)
-  lines(dens, col = "blue")
+  ts_plot(tweets %>% filter(lang %in% input$tweetlang) , by = "hours", col = "blue")  +
+    labs(x = NULL, y = NULL,
+       title = "Frequency of tweets containing #Rstats",
+       subtitle = paste0(format(min(tweets$created_at), "%d %B %Y"), " to ", format(max(tweets$created_at),"%d %B %Y")),
+       caption = "Data collected from Twitter's REST API via rtweet") + 
+    theme_minimal()
+})
+
+renderDataTable({
+  tweets %>% 
+    filter(lang %in% input$tweetlang) %>% 
+    select(screen_name,text,lang,favorite_count,retweet_count)
+})
+
+```
+
+### The plots below show a wordle of terms, and a time series of tweets by @RLadiesSeattle. The time series can be plotted with different sources to see when different devices were used to tweet.
+
+#### Time series plot of tweets
+
+```{r user, echo=FALSE}
+inputPanel(
+  selectInput("tweetsource", label = "Source of tweets:",
+              choices = unique(user_timeline$source), selected = unique(user_timeline$source), multiple = TRUE)
+)
+
+renderPlot({
+  ts_plot(user_timeline %>% filter(source %in% input$tweetsource), by = "months", col = "blue") +
+    labs(x = NULL, y = NULL,
+       title = "Frequency of tweets from @RLadiesSeattle",
+       subtitle = paste0(format(min(tweets$created_at), "%d %B %Y"), " to ", format(max(tweets$created_at),"%d %B %Y")),
+       caption = "Data collected from Twitter's REST API via rtweet") + 
+    theme_minimal()
+})
+
+renderDataTable({
+  user_timeline %>% 
+    filter(source %in% input$tweetsource) %>% 
+    select(text, favorite_count, retweet_count, source) %>%
+    arrange(desc(retweet_count))
+})
+
+```
+
+#### Wordle: A graphic of frequently used words.
+
+```{r userwordle , echo=FALSE}
+renderPlot({
+ words <- user_timeline %>%
+  mutate(text = str_remove_all(text, "&amp;|&lt;|&gt;"),
+         text = str_remove_all(text, "\\s?(f|ht)(tp)(s?)(://)([^\\.]*)[\\.|/](\\S*)"),
+         text = str_remove_all(text, "[^\x01-\x7F]")) %>% 
+  unnest_tokens(word, text, token = "tweets") %>%
+  filter(!word %in% stop_words$word,
+         !word %in% str_remove_all(stop_words$word, "'"),
+         str_detect(word, "[a-z]"),
+         !str_detect(word, "^#"),         
+         !str_detect(word, "@\\S+")) %>%
+  filter(source %in% input$tweetsource) %>%
+  count(word, sort = TRUE)
+
+words %>% 
+  with(wordcloud(word, n, random.order = FALSE, max.words = 100, colors = "#F29545")) 
 })
 ```
-
-## Embedded Application
-
-It's also possible to embed an entire Shiny application within an R Markdown document using the `shinyAppDir` function. This example embeds a Shiny application located in another directory:
-
-```{r tabsets, echo=FALSE}
-shinyAppDir(
-  system.file("examples/06_tabsets", package = "shiny"),
-  options = list(
-    width = "100%", height = 550
-  )
-)
-```
-
-Note the use of the `height` parameter to determine how much vertical space the embedded application should occupy.
-
-You can also use the `shinyApp` function to define an application inline rather then in an external directory.
-
-In all of R code chunks above the `echo = FALSE` attribute is used. This is to prevent the R code within the chunk from rendering in the document alongside the Shiny components.
-
-
-
