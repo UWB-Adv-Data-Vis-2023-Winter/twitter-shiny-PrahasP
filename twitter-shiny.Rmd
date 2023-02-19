@@ -11,16 +11,19 @@ knitr::opts_chunk$set(echo = TRUE)
 pacman::p_load(rtweet,syuzhet, tidyverse, DT, stringr, wordcloud, tidytext, shiny)
 ```
 
-```{r load data, include = FALSE}
-load('data.Rdata')
+## Introduction
+
+This R Markdown document is made interactive using Shiny to demonstrate my abilities to make interactive data visualizations. 
 
 ## Twitter data {.tabset}
 
+```{r load data, include = FALSE}
+load('data.Rdata')
+```
+
 ### Recent Rstats tweets
 
-### Tweets from @RLadiesSeattle
-
-```
+The plot below shows time series of #rstats tweets and can be filtered by language.
 
 ```{r tweets, echo=FALSE}
 inputPanel(
@@ -45,7 +48,9 @@ renderDataTable({
 
 ```
 
-### The plots below show a wordle of terms, and a time series of tweets by @RLadiesSeattle. The time series can be plotted with different sources to see when different devices were used to tweet.
+### Tweets from @RLadiesSeattle 
+
+The plots below show a wordle of terms, and a time series of tweets by @RLadiesSeattle. The time series can be plotted with different sources to see when different devices were used to tweet.
 
 #### Time series plot of tweets
 
